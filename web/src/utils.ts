@@ -1,4 +1,4 @@
-import type { TreeNode } from "./TreeRenderer";
+import type { TreeNode } from "./components/TreeRenderer";
 
 export function tokenizeStringTree(stringTree: string) {
   const tokens = [];
@@ -99,7 +99,7 @@ export function treeToFlow(
 
     let subtreeHeight = 0;
 
-    node.children.forEach((child) => {
+    node.children.forEach((child: any) => {
       const height = walk(child, depth + 1, y + subtreeHeight * siblingGap, id);
       subtreeHeight += height;
     });

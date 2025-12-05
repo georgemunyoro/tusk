@@ -1,5 +1,4 @@
 import dagre from "@dagrejs/dagre";
-import type { TreeNode } from "../TreeRenderer";
 import {
   addEdge,
   Background,
@@ -10,6 +9,7 @@ import {
 } from "@xyflow/react";
 import { useCallback } from "react";
 import { treeToFlow } from "../utils";
+import type { TreeNode } from "./TreeRenderer";
 
 const dagreGraph = new dagre.graphlib.Graph()
   .setGraph({})
@@ -65,7 +65,7 @@ export function TreeDagre({ node }: { node: TreeNode }) {
     _edges
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
+  const [nodes, _setNodes, onNodesChange] = useNodesState(layoutedNodes as any);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
 
   const onConnect = useCallback(
@@ -77,17 +77,6 @@ export function TreeDagre({ node }: { node: TreeNode }) {
         )
       ),
     []
-  );
-
-  const onLayout = useCallback(
-    (direction: string | undefined) => {
-      const { nodes: layoutedNodes, edges: layoutedEdges } =
-        getLayoutedElements(nodes, edges, direction);
-
-      setNodes([...layoutedNodes]);
-      setEdges([...layoutedEdges]);
-    },
-    [nodes, edges]
   );
 
   return (

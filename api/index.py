@@ -1,14 +1,14 @@
 import importlib.util
 import os
-import subprocess
-import tempfile
 import re
+import secrets
+import string
+import subprocess
+import sys
+import tempfile
 from dataclasses import dataclass, field
 from typing import List
-import sys
-import string
-import secrets
-from antlr4 import InputStream
+from pathlib import Path
 
 from antlr4 import CommonTokenStream, InputStream
 from flask import Flask, jsonify, request
@@ -18,7 +18,7 @@ app = Flask(__name__)
 
 CORS(app)
 
-ANTLR_JAR = "/home/george/workspace/tusk/api/vendor/antlr-4.13.2-complete.jar"
+ANTLR_JAR = Path.cwd() / "vendor" / "antlr-4.13.2-complete.jar"
 
 
 def load_module(path):

@@ -1,0 +1,15 @@
+services:
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=https://tusk-api.munyoro.dev
+    ports:
+      - "14750:80"
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "14751:80"
