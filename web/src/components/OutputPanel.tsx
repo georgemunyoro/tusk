@@ -1,7 +1,7 @@
 import { RefreshCw, Network, FolderTree, AlertCircle } from "lucide-react";
 import { Button } from "./Button";
-import { Select } from "./Select";
 import { TreeDagre } from "./DagreGraph";
+import { RuleSelect } from "./RuleSelect";
 import { TreeRenderer, type TreeNode } from "./TreeRenderer";
 
 interface OutputPanelProps {
@@ -36,20 +36,7 @@ export function OutputPanel({
       {/* Toolbar */}
       <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/30 p-2">
         <div className="flex items-center gap-2">
-          <Select
-            value={rule}
-            onChange={(e) => onRuleChange(e.target.value)}
-            className="w-48 bg-zinc-900 border-zinc-700"
-          >
-            <option disabled value="">
-              Select Rule
-            </option>
-            {rules.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </Select>
+          <RuleSelect value={rule} options={rules} onChange={onRuleChange} />
           <Button
             variant="outline"
             size="sm"
@@ -99,7 +86,11 @@ export function OutputPanel({
         ) : status === "error" ? (
           <div className="flex h-full flex-col items-center justify-center text-red-400">
             <AlertCircle className="mb-2 h-8 w-8 opacity-50" />
-            <p>{errorMessages.length > 0 ? "Unable to parse." : "An unexpected error occurred."}</p>
+            <p>
+              {errorMessages.length > 0
+                ? "Unable to parse."
+                : "An unexpected error occurred."}
+            </p>
             {errorMessages.length > 0 && (
               <div className="mt-3 max-h-48 w-4/5 overflow-auto rounded border border-red-500/30 bg-red-500/10 p-2 text-left text-xs text-red-200">
                 <ul className="space-y-1">
