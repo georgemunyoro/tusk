@@ -8,7 +8,7 @@ import { Header } from "./components/layout/Header";
 import { PanelHeader } from "./components/layout/PanelHeader";
 import { CodeEditor } from "./components/editor/CodeEditor";
 import { OutputPanel } from "./components/OutputPanel";
-import { useParse } from "./hooks/useParse";
+import { ParseError, useParse } from "./hooks/useParse";
 import { type TreeNode } from "./components/TreeRenderer";
 
 function App() {
@@ -20,11 +20,27 @@ function App() {
   const debouncedGrammar = useDebounce(grammar, 400);
   const debouncedSource = useDebounce(source, 400);
 
-  const { data, status, refetch, isFetching } = useParse({
+  const { data, status, refetch, isFetching, error } = useParse({
     grammar: debouncedGrammar,
     source: debouncedSource,
     rule,
   });
+
+  const errorMessages = useMemo(() => {
+    const messages: string[] = [];
+
+    if (data?.errors?.length) {
+      messages.push(...data.errors);
+    }
+
+    if (error instanceof ParseError && error.details.length > 0) {
+      messages.push(...error.details);
+    } else if (error instanceof Error && error.message) {
+      messages.push(error.message);
+    }
+
+    return Array.from(new Set(messages.filter(Boolean)));
+  }, [data?.errors, error]);
 
   const tree: TreeNode | null = useMemo(() => {
     if (!data || !data.string_tree) return null;
@@ -88,6 +104,7 @@ function App() {
                   status={status}
                   tree={tree}
                   hasData={!!data}
+                  errorMessages={errorMessages}
                 />
               </Panel>
             </PanelGroup>

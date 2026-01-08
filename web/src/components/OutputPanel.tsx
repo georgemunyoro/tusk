@@ -15,6 +15,7 @@ interface OutputPanelProps {
   status: "pending" | "error" | "success";
   tree: TreeNode | null;
   hasData: boolean;
+  errorMessages: string[];
 }
 
 export function OutputPanel({
@@ -28,6 +29,7 @@ export function OutputPanel({
   status,
   tree,
   hasData,
+  errorMessages,
 }: OutputPanelProps) {
   return (
     <div className="flex flex-col h-full bg-zinc-900/20">
@@ -97,7 +99,16 @@ export function OutputPanel({
         ) : status === "error" ? (
           <div className="flex h-full flex-col items-center justify-center text-red-400">
             <AlertCircle className="mb-2 h-8 w-8 opacity-50" />
-            <p>An unexpected error occurred.</p>
+            <p>{errorMessages.length > 0 ? "Unable to parse." : "An unexpected error occurred."}</p>
+            {errorMessages.length > 0 && (
+              <div className="mt-3 max-h-48 w-4/5 overflow-auto rounded border border-red-500/30 bg-red-500/10 p-2 text-left text-xs text-red-200">
+                <ul className="space-y-1">
+                  {errorMessages.map((message, index) => (
+                    <li key={`${message}-${index}`}>{message}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <Button
               variant="ghost"
               size="sm"
