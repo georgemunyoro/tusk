@@ -4,10 +4,12 @@ import {
   Background,
   ConnectionLineType,
   Handle,
+  type Node,
   type NodeProps,
   Position,
   type ReactFlowInstance,
   ReactFlow,
+  type Edge,
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
@@ -22,7 +24,9 @@ type LabelNodeData = {
   label: string;
 };
 
-function LabelNode({ data }: NodeProps<LabelNodeData>) {
+type LabelNode = Node<LabelNodeData, "labelNode">;
+
+function LabelNode({ data }: NodeProps<LabelNode>) {
   return (
     <div
       className="relative flex items-center justify-center rounded-md border border-slate-600/70 bg-slate-800/70 px-2 py-1 text-xs text-zinc-100 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.45)]"
@@ -45,8 +49,8 @@ function LabelNode({ data }: NodeProps<LabelNodeData>) {
 }
 
 const getLayoutedElements = (
-  nodes: any[],
-  edges: any[],
+  nodes: LabelNode[],
+  edges: Edge[],
   direction = "TB"
 ) => {
   const isHorizontal = direction === "LR";
@@ -58,27 +62,22 @@ const getLayoutedElements = (
     })
     .setDefaultEdgeLabel(() => ({}));
 
-  nodes.forEach((node: { id: string }) => {
+  nodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
   });
 
-  edges.forEach(
-    (edge: {
-      source: dagre.Edge;
-      target: string | { [key: string]: any } | undefined;
-    }) => {
-      dagreGraph.setEdge(edge.source, edge.target);
-    }
-  );
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
 
   dagre.layout(dagreGraph);
 
-  const newNodes = nodes.map((node: { id: string | dagre.Label }) => {
+  const newNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
     const newNode = {
       ...node,
-      targetPosition: isHorizontal ? "left" : "top",
-      sourcePosition: isHorizontal ? "right" : "bottom",
+      targetPosition: isHorizontal ? Position.Left : Position.Top,
+      sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
       // We are shifting the dagre node position (anchor=center center) to the top left
       // so it matches the React Flow node anchor point (top left).
       position: {
@@ -95,22 +94,27 @@ const getLayoutedElements = (
 
 export function TreeDagre({ node }: { node: TreeNode }) {
   const flow = useMemo(() => treeToFlow(node), [node]);
-  const layouted = useMemo(
+  const baseNodes: LabelNode[] = useMemo(
     () =>
-      getLayoutedElements(
-        flow.nodes.map((item) => ({
-          ...item,
-          data: { label: String(item.data.label) },
-          type: "labelNode",
-        })),
-        flow.edges
-      ),
-    [flow.nodes, flow.edges]
+      flow.nodes.map((item) => ({
+        ...item,
+        data: { label: String(item.data.label) },
+        type: "labelNode",
+      })),
+    [flow.nodes]
+  );
+  const layouted = useMemo(
+    () => getLayoutedElements(baseNodes, flow.edges),
+    [baseNodes, flow.edges]
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(layouted.nodes as any);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(layouted.edges);
-  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState<LabelNode>(
+    layouted.nodes
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(layouted.edges);
+  const [rfInstance, setRfInstance] = useState<
+    ReactFlowInstance<LabelNode, Edge> | null
+  >(null);
 
   useEffect(() => {
     setNodes(layouted.nodes as any);
@@ -134,7 +138,7 @@ export function TreeDagre({ node }: { node: TreeNode }) {
   );
 
   return (
-    <ReactFlow
+    <ReactFlow<LabelNode, Edge>
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
