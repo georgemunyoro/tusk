@@ -1,8 +1,10 @@
-# Tusk
+<p align="center">
+  <img src="web/public/tusk.webp" alt="Tusk logo" width="160" height="160" />
+</p>
+<h1 align="center">Tusk</h1>
+<p align="center">Tusk is a live ANTLR playground for authoring grammars, running parses, and inspecting parse trees as you type.</p>
 
-[ANTLR Lab](http://lab.antlr.org/), but actually nice. Tusk is an interactive playground for authoring ANTLR grammars, running parses, and visualizing parse trees in real time.
-
-<img width="1460" height="883" alt="Tusk UI screenshot" src="https://github.com/user-attachments/assets/331d7feb-f741-40d2-809f-6ded7cb68748" />
+<img width="1460" height="883" alt="Tusk UI screenshot" src="screenshot.png" />
 
 ## Features
 
