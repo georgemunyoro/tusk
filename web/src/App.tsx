@@ -13,15 +13,25 @@ import { type TreeNode } from "./components/TreeRenderer";
 
 function App() {
   const [grammar, setGrammar] = useLocalStorage<string>("grammar", "");
+  const [lexer, setLexer] = useLocalStorage<string>("lexer", "");
+  const [parser, setParser] = useLocalStorage<string>("parser", "");
   const [source, setSource] = useLocalStorage<string>("source", "");
   const [rule, setRule] = useLocalStorage<string>("rule", "");
   const [view, setView] = useLocalStorage<"tree" | "graph">("view", "tree");
+  const [grammarMode, setGrammarMode] = useLocalStorage<"combined" | "split">(
+    "grammar_mode",
+    "combined"
+  );
 
   const debouncedGrammar = useDebounce(grammar, 400);
+  const debouncedLexer = useDebounce(lexer, 400);
+  const debouncedParser = useDebounce(parser, 400);
   const debouncedSource = useDebounce(source, 400);
 
   const { data, status, refetch, isFetching, error } = useParse({
-    grammar: debouncedGrammar,
+    grammar: grammarMode === "combined" ? debouncedGrammar : undefined,
+    lexer: grammarMode === "split" ? debouncedLexer : undefined,
+    parser: grammarMode === "split" ? debouncedParser : undefined,
     source: debouncedSource,
     rule,
   });
@@ -58,14 +68,71 @@ function App() {
           {/* Left Panel: Grammar */}
           <Panel defaultSize={40} minSize={20}>
             <div className="flex h-full flex-col border-r border-zinc-800">
-              <PanelHeader title="GRAMMAR" />
+              <PanelHeader title="GRAMMAR">
+                <div className="flex items-center rounded-md border border-zinc-800 bg-zinc-900 p-0.5 text-[10px] uppercase tracking-wide">
+                  <button
+                    onClick={() => setGrammarMode("combined")}
+                    className={`rounded px-2 py-1 transition-colors ${
+                      grammarMode === "combined"
+                        ? "bg-zinc-800 text-white"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    Combined
+                  </button>
+                  <button
+                    onClick={() => setGrammarMode("split")}
+                    className={`rounded px-2 py-1 transition-colors ${
+                      grammarMode === "split"
+                        ? "bg-zinc-800 text-white"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    Split
+                  </button>
+                </div>
+              </PanelHeader>
               <div className="flex-1 overflow-hidden">
-                <CodeEditor
-                  value={grammar}
-                  onChange={(newValue) => setGrammar(newValue ?? "")}
-                  language="ANTLR4"
-                  className="h-full"
-                />
+                {grammarMode === "combined" ? (
+                  <CodeEditor
+                    value={grammar}
+                    onChange={(newValue) => setGrammar(newValue ?? "")}
+                    language="ANTLR4"
+                    className="h-full"
+                  />
+                ) : (
+                  <PanelGroup direction="vertical" autoSaveId="grammar-vertical">
+                    <Panel defaultSize={50} minSize={20}>
+                      <div className="flex h-full flex-col">
+                        <PanelHeader title="LEXER" />
+                        <div className="flex-1 overflow-hidden">
+                          <CodeEditor
+                            value={lexer}
+                            onChange={(newValue) => setLexer(newValue ?? "")}
+                            language="ANTLR4"
+                            className="h-full"
+                          />
+                        </div>
+                      </div>
+                    </Panel>
+
+                    <ResizeHandle vertical />
+
+                    <Panel minSize={20}>
+                      <div className="flex h-full flex-col">
+                        <PanelHeader title="PARSER" />
+                        <div className="flex-1 overflow-hidden">
+                          <CodeEditor
+                            value={parser}
+                            onChange={(newValue) => setParser(newValue ?? "")}
+                            language="ANTLR4"
+                            className="h-full"
+                          />
+                        </div>
+                      </div>
+                    </Panel>
+                  </PanelGroup>
+                )}
               </div>
             </div>
           </Panel>

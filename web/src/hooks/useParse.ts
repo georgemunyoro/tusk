@@ -8,7 +8,9 @@ type ParseResponse = {
 };
 
 type UseParseParams = {
-  grammar: string;
+  grammar?: string;
+  lexer?: string;
+  parser?: string;
   source: string;
   rule: string;
 };
@@ -33,16 +35,28 @@ async function readResponseBody(response: Response) {
   }
 }
 
-export function useParse({ grammar, source, rule }: UseParseParams) {
+export function useParse({ grammar, lexer, parser, source, rule }: UseParseParams) {
   return useQuery<ParseResponse>({
-    queryKey: ["parseinfo", grammar, source, rule],
+    queryKey: ["parseinfo", grammar, lexer, parser, source, rule],
+    retry: false,
     queryFn: async () => {
       let response: Response;
       try {
+        const body: Record<string, string> = { source, rule };
+        if (grammar !== undefined) {
+          body.grammar = grammar;
+        }
+        if (lexer !== undefined) {
+          body.lexer = lexer;
+        }
+        if (parser !== undefined) {
+          body.parser = parser;
+        }
+
         response = await fetch(`${import.meta.env.VITE_API_URL}/parse`, {
           method: "post",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ grammar, source, rule }),
+          body: JSON.stringify(body),
         });
       } catch (error) {
         throw new ParseError("Network error while contacting API");
@@ -63,15 +77,7 @@ export function useParse({ grammar, source, rule }: UseParseParams) {
         throw new ParseError("Invalid JSON response from API", [], response.status);
       }
 
-      if (payload.errors.length > 0) {
-        throw new ParseError("Parse failed", payload.errors, response.status);
-      }
-
       return payload;
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      console.error("[parse]", message, error);
     },
   });
 }

@@ -43,7 +43,7 @@ def load_module(path: str) -> Tuple[str, object]:
     name = gensym()
     spec = importlib.util.spec_from_file_location(name, path)
     if not spec or not spec.loader:
-        raise ValueError(f"failed to load spec: {path}")
+        raise ValueError(f"Failed to load spec: {path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     sys.modules[name] = module
@@ -54,7 +54,7 @@ def extract_grammar_name(grammar: str) -> str:
     regex = r"^\s*(?:lexer|parser)?\s*grammar\s+([A-Za-z_][A-Za-z0-9_]*)"
     match = re.search(regex, grammar, re.MULTILINE)
     if not match:
-        raise ValueError("could not determine grammar name")
+        raise ValueError("Could not determine grammar name")
     return match.group(1)
 
 
@@ -136,61 +136,110 @@ def _run_antlr(session: str, grammar_name: str) -> List[str]:
     return err.decode().splitlines()
 
 
-def _load_generated_classes(session: str, grammar_name: str):
-    parser_module_path = os.path.join(session, f"{grammar_name}Parser.py")
-    lexer_module_path = os.path.join(session, f"{grammar_name}Lexer.py")
+def _load_generated_classes(session: str, parser_name: str, lexer_name: str):
+    parser_module_path = os.path.join(session, f"{parser_name}.py")
+    lexer_module_path = os.path.join(session, f"{lexer_name}.py")
+
+    logger.debug("Loading parser module from %s", parser_module_path)
+    logger.debug("Loading lexer module from %s", lexer_module_path)
 
     parser_module_name, parser_module = load_module(parser_module_path)
     lexer_module_name, lexer_module = load_module(lexer_module_path)
     del parser_module_name, lexer_module_name
 
-    parser_cls = getattr(parser_module, f"{grammar_name}Parser")
-    lexer_cls = getattr(lexer_module, f"{grammar_name}Lexer")
+    parser_cls = getattr(parser_module, f"{parser_name}")
+    lexer_cls = getattr(lexer_module, f"{lexer_name}")
     return parser_cls, lexer_cls
 
 
 def _parse_request_json():
-    payload = request.get_json(silent=True) or {}
-    return payload.get("grammar"), payload.get("source"), payload.get("rule")
+    return request.get_json(silent=True) or {}
+
+
+def _clean_text(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    trimmed = value.strip()
+    return trimmed if trimmed else None
 
 
 @app.post("/parse")
-def run():
-    grammar, source, rule = _parse_request_json()
-    if grammar is None or source is None or rule is None:
-        return _json_error("missing required fields: grammar, source, rule")
+def parse():
+    payload = _parse_request_json()
+    grammar = _clean_text(payload.get("grammar"))
+    lexer_grammar = _clean_text(payload.get("lexer"))
+    parser_grammar = _clean_text(payload.get("parser"))
+    source = _clean_text(payload.get("source"))
+    rule = _clean_text(payload.get("rule"))
+
+    if source is None or rule is None:
+        return _json_error("Missing required fields: source, rule")
+
+    if grammar and (lexer_grammar or parser_grammar):
+        return _json_error("Provide either grammar or lexer+parser inputs, not both")
+
+    use_split = lexer_grammar is not None or parser_grammar is not None
+    if grammar is None and not use_split:
+        return _json_error("Missing required fields: grammar or lexer+parser")
+
+    if use_split and (lexer_grammar is None or parser_grammar is None):
+        return _json_error("Missing required fields: lexer, parser")
 
     try:
-        grammar_name = extract_grammar_name(grammar)
+        if grammar:
+            grammar_name = extract_grammar_name(grammar)
+            lexer_name = grammar_name
+            parser_name = grammar_name
+        else:
+            lexer_name = extract_grammar_name(lexer_grammar or "")
+            parser_name = extract_grammar_name(parser_grammar or "")
+            grammar_name = parser_name
     except ValueError as exc:
         return _json_error(str(exc))
 
     if not ANTLR_JAR.exists():
         logger.error("ANTLR jar not found at %s", ANTLR_JAR)
-        return _json_error("antlr jar not found on server", status_code=500)
+        return _json_error("ANTLR jar not found on server", status_code=500)
 
     session = tempfile.mkdtemp(prefix="tusk_")
-    _write_grammar_file(grammar, grammar_name, session)
+    if grammar:
+        _write_grammar_file(grammar, grammar_name, session)
+    else:
+        _write_grammar_file(lexer_grammar or "", lexer_name, session)
+        _write_grammar_file(parser_grammar or "", parser_name, session)
 
-    errors = _run_antlr(session, grammar_name)
+    if grammar:
+        errors = _run_antlr(session, grammar_name)
+        if len(errors) > 0:
+            return _build_parse_response(
+                grammar_name=grammar_name,
+                errors=errors,
+            ).to_json(400)
+    else:
+        lexer_errors = _run_antlr(session, lexer_name)
+        if len(lexer_errors) > 0:
+            return _build_parse_response(
+                grammar_name=lexer_name,
+                errors=lexer_errors,
+            ).to_json(400)
 
-    if len(errors) > 0:
-        return _build_parse_response(
-            grammar_name=grammar_name,
-            errors=errors,
-        ).to_json(400)
+        parser_errors = _run_antlr(session, parser_name)
+        if len(parser_errors) > 0:
+            return _build_parse_response(
+                grammar_name=parser_name,
+                errors=parser_errors,
+            ).to_json(400)
 
     try:
-        Parser, Lexer = _load_generated_classes(session, grammar_name)
+        Parser, Lexer = _load_generated_classes(session, parser_name, lexer_name)
     except (OSError, ValueError, AttributeError) as exc:
         logger.exception("Failed to load generated modules")
         return _json_error(
-            "failed to load generated modules",
-            extra=[str(exc)],
+            "Failed to load generated modules",
             status_code=500,
         )
 
-    response = _build_parse_response(grammar_name=grammar_name, errors=errors)
+    response = _build_parse_response(grammar_name=grammar_name, errors=[])
 
     try:
         lexer = Lexer(InputStream(source))
@@ -203,11 +252,8 @@ def run():
         return response.to_json(400)
 
     if rule not in response.rules:
-        return _build_parse_response(
-            grammar_name=grammar_name,
-            errors=[f"unknown rule '{rule}'"],
-            rules=response.rules,
-        ).to_json(400)
+        response.errors = [f"Unknown rule '{rule}'"]
+        return response.to_json(200)
 
     try:
         tree = getattr(parser, rule)()

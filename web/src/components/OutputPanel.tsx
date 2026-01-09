@@ -31,6 +31,8 @@ export function OutputPanel({
   hasData,
   errorMessages,
 }: OutputPanelProps) {
+  const showInlineError = status !== "error" && errorMessages.length > 0;
+
   return (
     <div className="flex flex-col h-full bg-zinc-900/20">
       {/* Toolbar */}
@@ -111,9 +113,22 @@ export function OutputPanel({
           </div>
         ) : (
           <div className="h-full w-full overflow-hidden">
+            {showInlineError && (
+              <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-2 text-xs text-red-200">
+                <ul className="space-y-1">
+                  {errorMessages.map((message, index) => (
+                    <li key={`${message}-${index}`}>{message}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {view === "graph" && tree && <TreeDagre node={tree} />}
             {view === "tree" && (
-              <div className="h-full overflow-auto p-4">
+              <div
+                className={`h-full overflow-auto p-4 ${
+                  showInlineError ? "pt-3" : ""
+                }`}
+              >
                 <TreeRenderer node={tree} />
               </div>
             )}
