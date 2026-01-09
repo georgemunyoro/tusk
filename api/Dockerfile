@@ -1,4 +1,6 @@
-FROM python:3.10-slim-buster
+FROM python:3.10-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends default-jre
 
 WORKDIR /app
 
