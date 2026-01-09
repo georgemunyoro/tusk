@@ -51,6 +51,16 @@ Set the API URL in `web/.env`:
 VITE_API_URL=http://localhost:5000
 ```
 
+## Tests
+
+```bash
+cd api
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Docker (Optional)
 
 ```bash
