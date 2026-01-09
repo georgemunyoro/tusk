@@ -169,11 +169,8 @@ def parse():
     grammar = _clean_text(payload.get("grammar"))
     lexer_grammar = _clean_text(payload.get("lexer"))
     parser_grammar = _clean_text(payload.get("parser"))
-    source = _clean_text(payload.get("source"))
-    rule = _clean_text(payload.get("rule"))
-
-    if source is None or rule is None:
-        return _json_error("Missing required fields: source, rule")
+    source = _clean_text(payload.get("source")) or ""
+    rule = _clean_text(payload.get("rule")) or ""
 
     if grammar and (lexer_grammar or parser_grammar):
         return _json_error("Provide either grammar or lexer+parser inputs, not both")
@@ -252,7 +249,7 @@ def parse():
         return response.to_json(400)
 
     if rule not in response.rules:
-        response.errors = [f"Unknown rule '{rule}'"]
+        response.errors = [f"Unknown rule '{rule}'"] if rule else ["No rule specified"]
         return response.to_json(200)
 
     try:

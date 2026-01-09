@@ -18,6 +18,31 @@ def _setup_parser(monkeypatch, tmp_path, parser_cls, lexer_cls):
     monkeypatch.setattr(index, "CommonTokenStream", lambda lexer: lexer)
 
 
+def _make_dummy_parser(rule_names=None, with_rule_impl=False):
+    if rule_names is None:
+        rule_names = ["expr"]
+
+    class DummyLexer:
+        def __init__(self, stream):
+            self.stream = stream
+
+    class DummyTree:
+        def toStringTree(self, recog=None):
+            return ""
+
+    class DummyParser:
+        ruleNames = rule_names
+
+        def __init__(self, stream):
+            self.stream = stream
+
+        if with_rule_impl:
+            def expr(self):
+                return DummyTree()
+
+    return DummyParser, DummyLexer
+
+
 def test_extract_grammar_name_valid_and_invalid():
     assert index.extract_grammar_name("grammar Expr;") == "Expr"
     assert index.extract_grammar_name(" parser grammar MyParser;") == "MyParser"
@@ -39,12 +64,47 @@ def test_cors_allowed_origins_default_and_list(monkeypatch):
     assert index._cors_allowed_origins() == ["http://one", "http://two"]
 
 
-def test_parse_missing_fields():
+def test_parse_missing_fields(monkeypatch, tmp_path):
+    parser_cls, lexer_cls = _make_dummy_parser()
+    _setup_parser(monkeypatch, tmp_path, parser_cls, lexer_cls)
     client = index.app.test_client()
-    response = client.post("/parse", json={})
-    assert response.status_code == 400
+    response = client.post("/parse", json={"grammar": "grammar Expr;"})
+    assert response.status_code == 200
     payload = response.get_json()
-    assert payload["errors"][0] == "Missing required fields: source, rule"
+    assert payload["errors"][0] == "No rule specified"
+    assert payload["rules"] == ["expr"]
+    assert payload["grammar_name"] == "Expr"
+    assert payload["string_tree"] == ""
+
+
+def test_parse_missing_rule_returns_parse_response(monkeypatch, tmp_path):
+    parser_cls, lexer_cls = _make_dummy_parser()
+    _setup_parser(monkeypatch, tmp_path, parser_cls, lexer_cls)
+    client = index.app.test_client()
+    response = client.post(
+        "/parse",
+        json={"grammar": "grammar Expr;", "source": "1 + 2"},
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["errors"][0] == "No rule specified"
+    assert payload["rules"] == ["expr"]
+    assert payload["string_tree"] == ""
+
+
+def test_parse_missing_source_returns_parse_response(monkeypatch, tmp_path):
+    parser_cls, lexer_cls = _make_dummy_parser(with_rule_impl=True)
+    _setup_parser(monkeypatch, tmp_path, parser_cls, lexer_cls)
+    client = index.app.test_client()
+    response = client.post(
+        "/parse",
+        json={"grammar": "grammar Expr;", "rule": "expr"},
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["errors"] == []
+    assert payload["rules"] == ["expr"]
+    assert payload["string_tree"] == ""
 
 
 def test_parse_conflicting_inputs():
